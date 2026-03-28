@@ -20,6 +20,20 @@ const LM = {
   RIGHT_ANKLE: 28,
 };
 
+const ENABLE_POSE_MIRROR =
+  new URLSearchParams(window.location.search).get('poseMirror') === '1';
+
+const POSE_Y_SIGN =
+  Number(new URLSearchParams(window.location.search).get('poseYSign') ?? '-1');
+
+// 腕の各関節を下げるためのYオフセット（MediaPipe座標系で下方向が+）。
+const ARM_SHOULDER_Y_OFFSET =
+  Number(new URLSearchParams(window.location.search).get('armShoulderYOffset') ?? '-0.1');
+const ARM_ELBOW_Y_OFFSET =
+  Number(new URLSearchParams(window.location.search).get('armElbowYOffset') ?? '-0.2');
+const ARM_WRIST_Y_OFFSET =
+  Number(new URLSearchParams(window.location.search).get('armWristYOffset') ?? '-0.3');
+
 /**
  * MediaPipe ランドマーク配列を THREE.Vector3 に変換する。
  * MediaPipe の座標系 (x: 右, y: 下, z: 奥) を Three.js 座標系 (x: 右, y: 上, z: 手前) に変換する。
@@ -27,7 +41,14 @@ const LM = {
  * @returns {THREE.Vector3}
  */
 function toVec3(lm) {
-  return new THREE.Vector3(lm.x, -lm.y, -lm.z);
+  return new THREE.Vector3(lm.x, lm.y * POSE_Y_SIGN, -lm.z);
+}
+
+function withYOffset(lm, offsetY) {
+  return {
+    ...lm,
+    y: lm.y + offsetY,
+  };
 }
 
 /**
@@ -38,43 +59,81 @@ function toVec3(lm) {
 export function mapPoseToMMD(landmarks) {
   const rotations = {};
 
+  const left = ENABLE_POSE_MIRROR
+    ? {
+        SHOULDER: LM.RIGHT_SHOULDER,
+        ELBOW: LM.RIGHT_ELBOW,
+        WRIST: LM.RIGHT_WRIST,
+        HIP: LM.RIGHT_HIP,
+        KNEE: LM.RIGHT_KNEE,
+        ANKLE: LM.RIGHT_ANKLE,
+      }
+    : {
+        SHOULDER: LM.LEFT_SHOULDER,
+        ELBOW: LM.LEFT_ELBOW,
+        WRIST: LM.LEFT_WRIST,
+        HIP: LM.LEFT_HIP,
+        KNEE: LM.LEFT_KNEE,
+        ANKLE: LM.LEFT_ANKLE,
+      };
+
+  const right = ENABLE_POSE_MIRROR
+    ? {
+        SHOULDER: LM.LEFT_SHOULDER,
+        ELBOW: LM.LEFT_ELBOW,
+        WRIST: LM.LEFT_WRIST,
+        HIP: LM.LEFT_HIP,
+        KNEE: LM.LEFT_KNEE,
+        ANKLE: LM.LEFT_ANKLE,
+      }
+    : {
+        SHOULDER: LM.RIGHT_SHOULDER,
+        ELBOW: LM.RIGHT_ELBOW,
+        WRIST: LM.RIGHT_WRIST,
+        HIP: LM.RIGHT_HIP,
+        KNEE: LM.RIGHT_KNEE,
+        ANKLE: LM.RIGHT_ANKLE,
+      };
+
   // 左上腕（肩→肘）
-  const leftShoulderVec = toVec3(landmarks[LM.LEFT_SHOULDER]);
-  const leftElbowVec = toVec3(landmarks[LM.LEFT_ELBOW]);
+  const leftShoulderVec = toVec3(withYOffset(landmarks[left.SHOULDER], ARM_SHOULDER_Y_OFFSET));
+  const leftElbowVec = toVec3(withYOffset(landmarks[left.ELBOW], ARM_ELBOW_Y_OFFSET));
   rotations['左腕'] = computeRotationFromTwoPoints(
     leftShoulderVec,
     leftElbowVec,
-    new THREE.Vector3(1, 0, 0)
+    // このモデルでは左腕のレスト方向は -X 側が自然。
+    new THREE.Vector3(-1, 0, 0)
   );
 
   // 右上腕（肩→肘）
-  const rightShoulderVec = toVec3(landmarks[LM.RIGHT_SHOULDER]);
-  const rightElbowVec = toVec3(landmarks[LM.RIGHT_ELBOW]);
+  const rightShoulderVec = toVec3(withYOffset(landmarks[right.SHOULDER], ARM_SHOULDER_Y_OFFSET));
+  const rightElbowVec = toVec3(withYOffset(landmarks[right.ELBOW], ARM_ELBOW_Y_OFFSET));
   rotations['右腕'] = computeRotationFromTwoPoints(
     rightShoulderVec,
     rightElbowVec,
-    new THREE.Vector3(-1, 0, 0)
-  );
-
-  // 左前腕（肘→手首）
-  const leftWristVec = toVec3(landmarks[LM.LEFT_WRIST]);
-  rotations['左ひじ'] = computeRotationFromTwoPoints(
-    leftElbowVec,
-    leftWristVec,
+    // このモデルでは右腕のレスト方向は +X 側が自然。
     new THREE.Vector3(1, 0, 0)
   );
 
-  // 右前腕（肘→手首）
-  const rightWristVec = toVec3(landmarks[LM.RIGHT_WRIST]);
-  rotations['右ひじ'] = computeRotationFromTwoPoints(
-    rightElbowVec,
-    rightWristVec,
+  // 左前腕（肘→手首）
+  const leftWristVec = toVec3(withYOffset(landmarks[left.WRIST], ARM_WRIST_Y_OFFSET));
+  rotations['左ひじ'] = computeRotationFromTwoPoints(
+    leftElbowVec,
+    leftWristVec,
     new THREE.Vector3(-1, 0, 0)
   );
 
+  // 右前腕（肘→手首）
+  const rightWristVec = toVec3(withYOffset(landmarks[right.WRIST], ARM_WRIST_Y_OFFSET));
+  rotations['右ひじ'] = computeRotationFromTwoPoints(
+    rightElbowVec,
+    rightWristVec,
+    new THREE.Vector3(1, 0, 0)
+  );
+
   // 左大腿（腰→膝）
-  const leftHipVec = toVec3(landmarks[LM.LEFT_HIP]);
-  const leftKneeVec = toVec3(landmarks[LM.LEFT_KNEE]);
+  const leftHipVec = toVec3(landmarks[left.HIP]);
+  const leftKneeVec = toVec3(landmarks[left.KNEE]);
   rotations['左足'] = computeRotationFromTwoPoints(
     leftHipVec,
     leftKneeVec,
@@ -82,8 +141,8 @@ export function mapPoseToMMD(landmarks) {
   );
 
   // 右大腿（腰→膝）
-  const rightHipVec = toVec3(landmarks[LM.RIGHT_HIP]);
-  const rightKneeVec = toVec3(landmarks[LM.RIGHT_KNEE]);
+  const rightHipVec = toVec3(landmarks[right.HIP]);
+  const rightKneeVec = toVec3(landmarks[right.KNEE]);
   rotations['右足'] = computeRotationFromTwoPoints(
     rightHipVec,
     rightKneeVec,
@@ -91,7 +150,7 @@ export function mapPoseToMMD(landmarks) {
   );
 
   // 左下腿（膝→足首）
-  const leftAnkleVec = toVec3(landmarks[LM.LEFT_ANKLE]);
+  const leftAnkleVec = toVec3(landmarks[left.ANKLE]);
   rotations['左ひざ'] = computeRotationFromTwoPoints(
     leftKneeVec,
     leftAnkleVec,
@@ -99,7 +158,7 @@ export function mapPoseToMMD(landmarks) {
   );
 
   // 右下腿（膝→足首）
-  const rightAnkleVec = toVec3(landmarks[LM.RIGHT_ANKLE]);
+  const rightAnkleVec = toVec3(landmarks[right.ANKLE]);
   rotations['右ひざ'] = computeRotationFromTwoPoints(
     rightKneeVec,
     rightAnkleVec,

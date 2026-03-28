@@ -1,5 +1,19 @@
 import * as THREE from 'three';
 
+const BONE_BLEND = 0.2;
+
+function ensureBindPoseCache(mesh) {
+  if (!mesh || !mesh.skeleton) return;
+  if (mesh.userData.bindPoseQuaternions) return;
+
+  const bindPoseQuaternions = {};
+  for (const bone of mesh.skeleton.bones) {
+    bindPoseQuaternions[bone.name] = bone.quaternion.clone();
+  }
+
+  mesh.userData.bindPoseQuaternions = bindPoseQuaternions;
+}
+
 /**
  * MMDメッシュのボーンに回転を適用する。
  * @param {THREE.SkinnedMesh} mesh
@@ -8,10 +22,16 @@ import * as THREE from 'three';
 export function updateBones(mesh, boneRotations) {
   if (!mesh || !mesh.skeleton) return;
 
+  ensureBindPoseCache(mesh);
+  const bindPoseQuaternions = mesh.userData.bindPoseQuaternions ?? {};
+
   for (const bone of mesh.skeleton.bones) {
     const rotation = boneRotations[bone.name];
+    const baseQuat = bindPoseQuaternions[bone.name] ?? new THREE.Quaternion();
+
     if (rotation) {
-      bone.quaternion.copy(rotation);
+      const targetQuat = baseQuat.clone().multiply(rotation);
+      bone.quaternion.slerp(targetQuat, BONE_BLEND);
     }
   }
 }
