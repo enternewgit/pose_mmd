@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import { MMDLoader } from 'three/examples/jsm/loaders/MMDLoader.js';
 
-const ENABLE_MODEL_DEBUG =
-  new URLSearchParams(window.location.search).get('debugModel') === '1';
-const ENABLE_SAFE_MATERIAL =
-  new URLSearchParams(window.location.search).get('safeMaterial') === '1';
+const QUERY = new URLSearchParams(window.location.search);
+const ENABLE_MODEL_DEBUG = QUERY.get('debugModel') === '1';
+const ENABLE_SAFE_MATERIAL = QUERY.get('safeMaterial') === '1';
+
+function normalizeMaterial(material) {
+  material.visible = true;
+  material.transparent = false;
+  material.opacity = 1.0;
+  material.alphaTest = 0;
+  material.depthWrite = true;
+  material.side = THREE.DoubleSide;
+  material.needsUpdate = true;
+}
 
 /**
  * MMDモデル（.pmx / .pmd）を読み込んでシーンに追加する。
@@ -56,15 +65,12 @@ export function loadMMDModel(scene, modelPath) {
             obj.material = safeMat;
           }
 
-          const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-          for (const m of materials) {
-            m.visible = true;
-            m.transparent = false;
-            m.opacity = 1.0;
-            m.alphaTest = 0;
-            m.depthWrite = true;
-            m.side = THREE.DoubleSide;
-            m.needsUpdate = true;
+          if (Array.isArray(obj.material)) {
+            for (const m of obj.material) {
+              normalizeMaterial(m);
+            }
+          } else {
+            normalizeMaterial(obj.material);
           }
           obj.frustumCulled = false;
         });

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 const BONE_BLEND = 0.2;
+const IDENTITY_QUATERNION = new THREE.Quaternion();
+const TARGET_QUATERNION = new THREE.Quaternion();
 
 function ensureBindPoseCache(mesh) {
   if (!mesh || !mesh.skeleton) return;
@@ -27,11 +29,11 @@ export function updateBones(mesh, boneRotations) {
 
   for (const bone of mesh.skeleton.bones) {
     const rotation = boneRotations[bone.name];
-    const baseQuat = bindPoseQuaternions[bone.name] ?? new THREE.Quaternion();
+    const baseQuat = bindPoseQuaternions[bone.name] ?? IDENTITY_QUATERNION;
 
     if (rotation) {
-      const targetQuat = baseQuat.clone().multiply(rotation);
-      bone.quaternion.slerp(targetQuat, BONE_BLEND);
+      TARGET_QUATERNION.copy(baseQuat).multiply(rotation);
+      bone.quaternion.slerp(TARGET_QUATERNION, BONE_BLEND);
     }
   }
 }

@@ -12,7 +12,8 @@ import * as THREE from 'three';
 export function computeRotationFromTwoPoints(from, to, restDirection) {
   const direction = new THREE.Vector3().subVectors(to, from).normalize();
   const quaternion = new THREE.Quaternion();
-  quaternion.setFromUnitVectors(restDirection.clone().normalize(), direction);
+  // restDirectionは呼び出し側で単位ベクトルを渡す前提にして割り当てを減らす。
+  quaternion.setFromUnitVectors(restDirection, direction);
   return quaternion;
 }
 

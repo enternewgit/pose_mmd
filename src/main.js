@@ -11,14 +11,12 @@ import { updateBones } from './three/animation.js';
 import { initPose, startPseudoPose } from './pose/pose.js';
 import { mapPoseToMMD } from './pose/mapping.js';
 
+const QUERY = new URLSearchParams(window.location.search);
 const MODEL_PATH = '/models/model.pmx'; // public/ 以下のモデルパス
-const ENABLE_POSE = new URLSearchParams(window.location.search).get('pose') !== '0';
-const ENABLE_PSEUDO_FALLBACK =
-  new URLSearchParams(window.location.search).get('pseudoFallback') !== '0';
-const ENABLE_PSEUDO_AUTO_MOTION =
-  new URLSearchParams(window.location.search).get('pseudoMotion') === '1';
-const ENABLE_SIDE_VIEW =
-  new URLSearchParams(window.location.search).get('sideView') === '1';
+const ENABLE_POSE = QUERY.get('pose') !== '0';
+const ENABLE_PSEUDO_FALLBACK = QUERY.get('pseudoFallback') !== '0';
+const ENABLE_PSEUDO_AUTO_MOTION = QUERY.get('pseudoMotion') === '1';
+const ENABLE_SIDE_VIEW = QUERY.get('sideView') === '1';
 
 async function main() {
   // Three.js シーン初期化

@@ -3,6 +3,7 @@ import { Camera } from '@mediapipe/camera_utils';
 
 const LANDMARK_COUNT = 33;
 const EDITABLE_LANDMARK_INDEXES = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+const EDITABLE_LANDMARK_SET = new Set(EDITABLE_LANDMARK_INDEXES);
 const MIN_LANDMARK_Z = -0.35;
 const MAX_LANDMARK_Z = 0.35;
 
@@ -125,7 +126,7 @@ function drawPseudoPreview(canvasEl, landmarks, controlState) {
   for (let i = 0; i < landmarks.length; i += 1) {
     const p = landmarks[i];
     if (!p) continue;
-    const isEditable = EDITABLE_LANDMARK_INDEXES.includes(i);
+    const isEditable = EDITABLE_LANDMARK_SET.has(i);
     const isOverridden = controlState.overrides.has(i);
 
     ctx.fillStyle = isOverridden
